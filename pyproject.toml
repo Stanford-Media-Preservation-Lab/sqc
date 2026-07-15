@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sqc"
+version = "0.1.0"
+description = "SMPL QC tool for vendor-delivered and donor-received video/audio: vendor-qc (spec conformance) and donor-triage (well-formedness) modes"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Stanford Media Preservation Lab" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "tqdm>=4.65",
+]
+
+[project.scripts]
+sqc = "sqc.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sqc*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

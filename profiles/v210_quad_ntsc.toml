@@ -1,0 +1,40 @@
+# SMPL vendor-qc policy profile: 2" Quadruplex NTSC digitized to v210 QuickTime.
+# Seeded directly from smpl_qc_v210.py v1.0.2's POLICY_DEFAULTS dict.
+
+[profile]
+name = "v210_quad_ntsc"
+description = "2\" Quadruplex NTSC digitized to v210 QuickTime — vendor delivery spec"
+container_extensions = [".mov"]
+mediaconch_policy = "v210_quad_ntsc.xml"
+
+[video]
+codec = "v210"
+width = 720
+height = 486
+fps_num = 30000
+fps_den = 1001
+timescale_multiple = 30000   # denominator of time_base must be a multiple of this
+bit_depth = 10
+scan_type = "interlaced"
+field_order = ["bb", "bt"]    # both are BFF for NTSC v210; 'bt' common from AJA
+
+[audio]
+codec_prefix = "pcm"          # pcm_s24le, pcm_s16le, etc.
+bit_depth = 24
+sample_rate = 48000
+min_streams = 1
+
+[thresholds]
+av_duration_threshold_s = 1.0
+av_delay_threshold_s = 0.001
+spin_down_zone = 0.97          # fraction of file after which anomalies = SPIN_DOWN, not drops
+frame_anomaly_low_ratio = 0.5   # duration < modal * this -> anomalous
+frame_anomaly_high_ratio = 1.5  # duration > modal * this -> anomalous
+
+[capture_quirks]
+# AJA hardware stores 720x486 with a `clap` atom hinting a 704x480 display
+# crop; ffmpeg applies this crop silently on decode by default. Every ffmpeg
+# read of this format (transcode, framemd5, streamhash) must pass
+# -apply_cropping 0 or the archival copy silently loses border pixels. Do NOT
+# apply this to MKV reads — Matroska has no clap atom.
+apply_cropping_zero = true

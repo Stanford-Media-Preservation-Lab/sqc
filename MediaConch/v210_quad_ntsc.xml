@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<!--
+  PLACEHOLDER / NOT YET LAB-REVIEWED.
+
+  No MediaConch policy XML for the 2" Quad -> v210 vendor delivery spec was
+  found among the source documents (video_diagnostic_tool_design.md,
+  SMPL_VendorQC_ClaudeCode_Context.md, smpl_qc_v210.py) — those describe the
+  policy as a Python POLICY_DEFAULTS dict, checked in code, not a MediaConch
+  XML. This file translates that same POLICY_DEFAULTS dict into MediaConch
+  rule syntax (mirroring srw/MediaConch/WAV_policy.xml's structure) so
+  vendor-qc mode has something to actually run against, but it has NOT been
+  run against a known-good v210 Quad delivery file to confirm the MediaInfo
+  field names/values below (Format, Width, Height, FrameRate, BitDepth,
+  ScanType, ScanOrder) match what MediaConch reports for this exact codec on
+  this lab's files. Confirm with the lab whether a real, already-used policy
+  exists elsewhere before relying on this for an actual vendor accept/reject
+  decision.
+-->
+<policy type="and" name="SMPL: 2&quot; Quad -&gt; v210 QuickTime vendor delivery" license="CC-BY-4.0+">
+  <description>Vendor delivery spec for 2" Quadruplex NTSC tape digitized to v210 QuickTime. Mirrors smpl_qc_v210.py's POLICY_DEFAULTS.</description>
+
+  <rule name="Container is QuickTime?" value="Format" tracktype="General" occurrence="*" operator="=">MPEG-4</rule>
+
+  <policy type="and" name="Video: correct essence?">
+    <rule name="Video codec is v210?" value="Format" tracktype="Video" occurrence="*" operator="=">YUV</rule>
+    <rule name="Video is 720 wide?" value="Width" tracktype="Video" occurrence="*" operator="=">720</rule>
+    <rule name="Video is 486 tall?" value="Height" tracktype="Video" occurrence="*" operator="=">486</rule>
+    <rule name="Video bit depth is 10?" value="BitDepth" tracktype="Video" occurrence="*" operator="=">10</rule>
+    <rule name="Video is interlaced?" value="ScanType" tracktype="Video" occurrence="*" operator="=">Interlaced</rule>
+  </policy>
+
+  <policy type="and" name="Audio: correct essence?">
+    <rule name="Audio is PCM?" value="Format" tracktype="Audio" occurrence="*" operator="=">PCM</rule>
+    <rule name="Audio bit depth is 24?" value="BitDepth" tracktype="Audio" occurrence="*" operator="=">24</rule>
+    <rule name="Audio sample rate is 48kHz?" value="SamplingRate" tracktype="Audio" occurrence="*" operator="=">48000</rule>
+  </policy>
+</policy>
