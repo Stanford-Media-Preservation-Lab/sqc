@@ -42,8 +42,49 @@ Two prior threads fed into this tool's design:
 
 ## Current state
 
-At **v0.1.0** (initial build). Both modes are implemented end-to-end and
-verified against real local files (see "Verification done so far" below).
+At **v0.2.0**. Both modes are implemented end-to-end and verified against
+real local files (see "Verification done so far" below).
+
+- **v0.2.0: VFR taxonomy de-emphasis + a real gap fix, both from user
+  feedback after using v0.1.0 for a day.**
+  - **VFR taxonomy de-emphasis.** Michael flagged that `--spin-down-zone`/
+    `--frame-anomaly-low-ratio`/`--frame-anomaly-high-ratio` as top-level
+    `vendor-qc` CLI flags overstated how general-purpose that tuning is —
+    the specific "tail-only anomaly" behavior came from one vendor's
+    isolated 2" Quad/VTR/TBC signal chain, not something every run needs a
+    knob for. He was explicit that sqc's job is *diagnosis* (is this file
+    valid, what's wrong, does it need a FAILED log + vendor/donor
+    notification), not remediation — the fix scripts
+    (`smpl_transcode_ffv1.py`/`qt_timescale_fix.py`) are a separate concern,
+    and the detection/reporting side of that work (which he does want to
+    keep) shouldn't have dragged this much CLI surface along with it.
+    - Removed the three flags from `add_vendor_qc_arguments()` (`cli.py`)
+      and the matching fields from `VendorQCConfig` (`config.py`). Those
+      thresholds are now profile-only — `modes/vendor_qc.py::process_file()`
+      reads them straight from `profile.thresholds`, no CLI override layer
+      for them anymore (only `--av-duration-threshold` still overrides,
+      since A/V sync tolerance isn't VFR-taxonomy-specific).
+    - Kept `classify_frame_timing()` and all three classification buckets
+      exactly as they were — the *positional heuristic* (tail-only vs.
+      distributed anomalies) is generically useful and not really tape/VTR-
+      specific; only the CLI-level prominence and the "VTR head spin-down"
+      framing needed adjusting, not the underlying detection. Reworded
+      MANUAL.md's `SPIN_DOWN` description to make that distinction explicit
+      (name/defaults come from one cause; the classification logic is
+      broader than that one cause).
+    - `--full` (frame-level packet timing analysis) is unchanged and still
+      recommended generally — Michael specifically said he likes that part.
+  - **Real gap found from Michael's own QC checklist:** a file with no
+    extension at all (`ext == ""`) was silently `SKIP`ped by
+    `check_extension_format_match()` instead of being flagged — it fell into
+    the same "extension or format_name unavailable" branch as a genuine
+    probe gap. A missing extension is itself worth a WARN
+    (`EXTENSION_FORMAT_MISMATCH`), distinct from "we don't know the detected
+    format" (still SKIP). Fixed and added test coverage
+    (`test_missing_extension_warns_with_pattern`).
+  - See "Planned future work" below for the rest of Michael's lunchtime
+    checklist (general + QuickTime/MP4-specific checks) — sorted there by
+    how much new design/implementation each actually needs, not yet built.
 
 - **v0.1.0:** Initial implementation.
   - Shared engine (`analysis/crosscheck.py`): cross-tool comparison
@@ -199,6 +240,69 @@ the FAIL paths):
   not be pointed at the input directory).
 
 ## Planned future work
+
+### Michael's 2026-07-15 checklist (general + QuickTime/MP4 checks)
+
+Not yet built — captured here so it isn't lost, sorted by how much new
+design/implementation each needs rather than in the order given. "Other
+container/codec types" was left as an open "???" in the original list —
+still needs a first pass at what's worth checking for MXF, MKV, WAV, etc.
+
+**Quick wins (mostly new logic over data sqc already probes, no new tooling):**
+- File-size-vs-declared-stream sanity — compute an expected minimum size
+  from `bit_rate` × duration (per stream or format-level) and flag when
+  actual file size is far below that. This is also the practical detector
+  for a QuickTime **reference movie** (an alias/pointer `.mov` with no real
+  media data, just resource references to external files) — those files
+  are typically tiny relative to their claimed duration, so this one check
+  covers both the general "does file size make sense" question and the
+  QuickTime-specific reference-movie case, without needing separate logic.
+- DAR/SAR/PAR/coded-vs-display-dimension consistency — ffprobe already
+  reports `width`/`height`, `sample_aspect_ratio`, `display_aspect_ratio`,
+  and clean-aperture `Frame Cropping` side data (see `vdg`'s CLAUDE.md,
+  which hit exactly this) in the probe data `sqc` already has; just needs
+  a new check comparing them for internal conflicts.
+- Per-stream (not just whole-file) decodability — right now the null-pass
+  (`tools/ffmpeg_null.py`) decodes everything together; running it once per
+  stream (`-map 0:v:0` / `-map 0:a:N`) would identify *which* stream fails
+  rather than just "something in this file didn't decode."
+- Obsolete/at-risk codec flagging (e.g. Sorenson, Cinepak, Indeo — decode
+  fine today, real long-term support risk) — this is a `analysis/patterns.py`
+  registry addition (a maintained codec-name lookup list + a new pattern
+  entry), not new tooling; fits the existing architecture directly.
+- `EXTENSION_FORMAT_MISMATCH`'s missing-extension case was an existing gap,
+  already fixed in v0.2.0 (see "Current state" above) — worth noting here
+  since it came from this same checklist.
+
+**Needs real design work before implementing:**
+- **A/V interleaving order** (all video chunks dumped first, then all audio
+  at the end, instead of properly interleaved for streaming/scrubbing) —
+  requires parsing per-track chunk offsets (`stco`/`co64`) out of the moov
+  atom and checking whether video/audio chunk byte-offsets actually
+  alternate through the file or sit in two segregated blocks. MediaTrace's
+  XML output exposes box/atom structure but not obviously in a
+  ready-to-diff per-track-offset-sequence form — needs investigation into
+  whether MediaTrace surfaces this at a usable level of detail, or whether
+  a lightweight direct box parser is needed.
+- **Broken chunk-offset tables** (`stco`/`co64` entries pointing past EOF or
+  into garbage, from bad sectors or a truncated transfer) — same
+  investigation as above: need to confirm whether MediaTrace exposes raw
+  `stco`/`co64` values, or whether validating "every chunk offset is within
+  the actual file's byte length" needs a small dedicated MP4 box-walker
+  module. If MediaTrace doesn't expose this cleanly, this is the one item
+  on the whole list that might justify a new dependency or a hand-rolled
+  binary parser.
+
+**Open question, not yet decided:** the general checklist puts "is the
+container/codec decodable" as a baseline check, which is currently the
+`ffmpeg_null` essence check — opt-in for `vendor-qc` (`--strict-decode-check`,
+default off) because a full decode of a large uncompressed master isn't
+free. Worth revisiting whether `vendor-qc` should default this on too, or
+whether MediaConch + the crosscheck layer are judged sufficient there and
+the full decode stays donor-triage's job. Not changed yet — flag to Michael
+next time this comes up.
+
+### Everything else
 
 - Verify `MediaConch/v210_quad_ntsc.xml` against a real 2" Quad delivery
   file, or confirm whether a real, already-in-use lab policy exists

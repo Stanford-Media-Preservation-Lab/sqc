@@ -56,6 +56,16 @@ class TestCheckExtensionFormatMatch:
         assert result[0].status == "WARN"
         assert result[0].pattern_id == "EXTENSION_FORMAT_MISMATCH"
 
+    def test_missing_extension_warns_with_pattern(self):
+        result = check_extension_format_match(Path("file_no_ext"), "mov,mp4,m4a,3gp,3g2,mj2")
+        assert result[0].status == "WARN"
+        assert result[0].pattern_id == "EXTENSION_FORMAT_MISMATCH"
+        assert "no extension" in result[0].detail.lower()
+
+    def test_missing_format_name_is_skip_not_warn(self):
+        result = check_extension_format_match(Path("file.mov"), "")
+        assert result[0].status == "SKIP"
+
 
 class TestCheckContainerCodecValidity:
     def test_recognized_codec_passes(self):

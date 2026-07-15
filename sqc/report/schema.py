@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-TOOL_VERSION = "0.1.0"
+TOOL_VERSION = "0.2.0"
 
 # Status ranking — lower index = worse. TOOL_FAILURE is worse than FAIL: it means
 # the batch worker itself crashed (subprocess timeout, missing binary, unexpected

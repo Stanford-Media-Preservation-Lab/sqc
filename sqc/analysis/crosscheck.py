@@ -106,8 +106,17 @@ def check_extension_format_match(path: Path, format_name: str) -> list[CheckResu
     """Extension is never trusted as the actual format — this check only
     flags a WARN when they disagree, it never gates format routing."""
     ext = path.suffix.lower().lstrip(".")
-    if not ext or not format_name:
-        return [CheckResult("extension_format_match", "SKIP", "Extension or format_name unavailable")]
+
+    if not ext:
+        # A missing extension is itself worth flagging, not silently skipped —
+        # distinct from "format_name unavailable" below, which is a probe gap.
+        return [CheckResult(
+            "extension_format_match", "WARN",
+            f"Filename has no extension (detected format: {format_name!r})",
+            pattern_id="EXTENSION_FORMAT_MISMATCH",
+        )]
+    if not format_name:
+        return [CheckResult("extension_format_match", "SKIP", "Detected format_name unavailable")]
 
     fmt_tokens = [t.strip().lower() for t in format_name.replace(",", " ").split()]
     if ext in fmt_tokens or any(ext in t for t in fmt_tokens):

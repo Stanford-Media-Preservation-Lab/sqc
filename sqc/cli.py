@@ -27,7 +27,7 @@ from sqc.modes import donor_triage, vendor_qc
 from sqc.policy import load_profile
 from sqc.report.csv_summary import write_csv
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def add_shared_arguments(parser: argparse.ArgumentParser, default_extensions) -> None:
@@ -75,9 +75,6 @@ def add_vendor_qc_arguments(parser: argparse.ArgumentParser) -> None:
             "weight, and a full decode of a large uncompressed master isn't free)"
         ),
     )
-    parser.add_argument("--spin-down-zone", type=float, default=None, metavar="FRACTION")
-    parser.add_argument("--frame-anomaly-low-ratio", type=float, default=None, metavar="RATIO")
-    parser.add_argument("--frame-anomaly-high-ratio", type=float, default=None, metavar="RATIO")
     parser.add_argument("--av-duration-threshold", type=float, default=None, metavar="SECONDS",
         dest="av_duration_threshold_s")
 
@@ -151,9 +148,6 @@ def run_vendor_qc(args: argparse.Namespace) -> int:
         profiles_dir=args.profiles_dir,
         mediaconch_dir=args.mediaconch_dir,
         strict_decode_check=args.strict_decode_check,
-        spin_down_zone=args.spin_down_zone,
-        frame_anomaly_low_ratio=args.frame_anomaly_low_ratio,
-        frame_anomaly_high_ratio=args.frame_anomaly_high_ratio,
         av_duration_threshold_s=args.av_duration_threshold_s,
     )
 

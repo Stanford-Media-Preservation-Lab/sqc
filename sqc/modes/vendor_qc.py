@@ -203,16 +203,12 @@ def _interpret_frame_stats(stats, thresholds: dict) -> list[CheckResult]:
 def process_file(path: Path, config: VendorQCConfig) -> FileReport:
     profile = load_profile(config.profile_name, config.profiles_dir, config.mediaconch_dir)
 
-    # Ad-hoc CLI overrides layered on top of the loaded profile.
+    # Ad-hoc CLI override layered on top of the loaded profile. VFR-taxonomy
+    # thresholds (spin_down_zone, frame_anomaly_*) are profile-only, not
+    # CLI-overridable — see config.py's VendorQCConfig docstring.
     thresholds = dict(profile.thresholds)
-    for key, override in (
-        ("spin_down_zone", config.spin_down_zone),
-        ("frame_anomaly_low_ratio", config.frame_anomaly_low_ratio),
-        ("frame_anomaly_high_ratio", config.frame_anomaly_high_ratio),
-        ("av_duration_threshold_s", config.av_duration_threshold_s),
-    ):
-        if override is not None:
-            thresholds[key] = override
+    if config.av_duration_threshold_s is not None:
+        thresholds["av_duration_threshold_s"] = config.av_duration_threshold_s
 
     report = FileReport(path=path, mode="vendor_qc", profile_name=profile.name)
     report.file_size = path.stat().st_size

@@ -32,10 +32,11 @@ class VendorQCConfig:
     profiles_dir: Path
     mediaconch_dir: Path
     strict_decode_check: bool = False  # opt-in; MediaConch+crosscheck carry most of the weight
-    # Ad-hoc overrides layered on top of the loaded profile, without editing the file:
-    spin_down_zone: Optional[float] = None
-    frame_anomaly_low_ratio: Optional[float] = None
-    frame_anomaly_high_ratio: Optional[float] = None
+    # Ad-hoc override layered on top of the loaded profile, without editing the file.
+    # VFR-taxonomy thresholds (spin_down_zone, frame_anomaly_*) are intentionally
+    # profile-only, not CLI flags — that taxonomy's specific tuning knobs were
+    # overpromoted for what turned out to be one vendor's isolated tape/signal-chain
+    # issue; see CLAUDE.md's "VFR taxonomy de-emphasis" entry.
     av_duration_threshold_s: Optional[float] = None
 
 

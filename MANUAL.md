@@ -56,11 +56,17 @@ sqc vendor-qc --profile NAME_OR_PATH [options] INPUT
 | `--profiles-dir` | `./profiles` | |
 | `--mediaconch-dir` | `./MediaConch` | Used to resolve a profile's `mediaconch_policy` if given as a bare filename |
 | `--strict-decode-check` | off | Also run the ffmpeg null-pass essence decode check. Off by default here — MediaConch + the crosscheck layer already carry most of the diagnostic weight, and a full decode of a large uncompressed master isn't free. |
-| `--spin-down-zone` | from profile | Override the profile's VFR spin-down-zone threshold for this run |
-| `--frame-anomaly-low-ratio` / `--frame-anomaly-high-ratio` | from profile | Override the profile's anomalous-frame-duration ratio thresholds |
 | `--av-duration-threshold` | from profile | Override the profile's A/V duration-sync threshold (seconds) |
 
 If `--extensions` isn't given, it's taken from the loaded profile's `container_extensions`.
+
+VFR-taxonomy thresholds (`spin_down_zone`, `frame_anomaly_low_ratio`,
+`frame_anomaly_high_ratio`) are **profile-only** — edit or copy a profile's
+`[thresholds]` section to tune them, there's no CLI override. They were
+originally exposed as top-level flags, but that overstated how broadly
+applicable the tuning even is: the specific "tail-only anomaly" tuning came
+from one vendor's 2" Quad/VTR/TBC signal chain, not a general-purpose knob
+every run needs. See CLAUDE.md's "VFR taxonomy de-emphasis" entry.
 
 ### `sqc donor-triage`
 
@@ -96,11 +102,15 @@ container's packet-duration index, no pixel decode) and classifies into:
 
 - `NONE` — all frames nominal
 - `TIMEBASE_ROUNDING` — two duration values differing by a tiny amount, no
-  large anomalies (benign QuickTime muxer artifact)
+  large anomalies (benign QuickTime muxer artifact; broadly applicable to
+  any 29.97fps QuickTime file, not tied to any particular source equipment)
 - `SPIN_DOWN` — anomalous frames confined to the tail (`spin_down_zone`
-  fraction through the file or later) — VTR head spin-down
+  fraction through the file or later). The name and default profile values
+  come from one specific cause (a VTR transport decelerating at end of
+  tape), but the *classification itself* — tail-only vs. distributed — is a
+  general positional heuristic, not exclusive to tape capture
 - `DROPPED_FRAMES` — anomalous frames distributed throughout — genuine
-  capture failure
+  capture or transfer failure
 
 **vendor-qc** treats this as an actionable verdict (SPIN_DOWN/TIMEBASE_ROUNDING
 → WARN, DROPPED_FRAMES → FAIL, with a recommended remediation). **donor-triage**

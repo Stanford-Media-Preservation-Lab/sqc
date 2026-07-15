@@ -57,14 +57,23 @@ class TestVendorQcArgParsing:
         args = parser.parse_args(["vendor-qc", "--profile", "p", "--no-resume", "input_dir"])
         assert args.resume is False
 
-    def test_threshold_overrides(self):
+    def test_av_duration_threshold_override(self):
         parser = build_arg_parser()
         args = parser.parse_args([
-            "vendor-qc", "--profile", "p", "--spin-down-zone", "0.9",
-            "--av-duration-threshold", "2.5", "input_dir",
+            "vendor-qc", "--profile", "p", "--av-duration-threshold", "2.5", "input_dir",
         ])
-        assert args.spin_down_zone == 0.9
         assert args.av_duration_threshold_s == 2.5
+
+    def test_no_spin_down_zone_flag_exists(self):
+        # VFR-taxonomy thresholds are profile-only, not CLI-overridable — see
+        # config.py's VendorQCConfig docstring and CLAUDE.md's "VFR taxonomy
+        # de-emphasis" entry. This should fail to parse, not silently accept it.
+        parser = build_arg_parser()
+        try:
+            parser.parse_args(["vendor-qc", "--profile", "p", "--spin-down-zone", "0.9", "input_dir"])
+            assert False, "should have exited (--spin-down-zone is not a real flag)"
+        except SystemExit:
+            pass
 
 
 class TestDonorTriageArgParsing:
