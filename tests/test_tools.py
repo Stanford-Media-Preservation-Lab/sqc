@@ -115,3 +115,79 @@ class TestMediaconchValidateFilesAgainstPolicy:
         files = [tmp_path / f"file{i}.mov" for i in range(5)]
         list(mediaconch.validate_files_against_policy(files, tmp_path / "policy.xml", batch_size=2))
         assert call_count["n"] == 3  # 2 + 2 + 1
+
+
+class TestGetPolicyFailures:
+    # Minimal -fx XML output: two failing rules inside a nested policy, one passing rule.
+    SAMPLE_XML = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<Mediaconch version="0.7">
+  <media ref="/path/to/file.mov">
+    <policy name="SMPL: v210 QuickTime NTSC" type="and" status="fail">
+      <rule name="Is the file extension mov?" value="FileExtension" tracktype="General" operator="=" status="pass"/>
+      <policy name="Is it NTSC?" type="and" status="fail">
+        <rule name="Is the frame rate 29.970?" value="FrameRate" tracktype="Video" operator="=" status="fail" actual="25.000">29.970</rule>
+        <rule name="Is the scan order bottom field first?" value="ScanOrder" tracktype="Video" operator="=" status="fail" actual="TFF">BFF</rule>
+      </policy>
+    </policy>
+  </media>
+</Mediaconch>"""
+
+    def test_returns_only_failing_rules(self, monkeypatch, tmp_path):
+        def fake_run(args, **kwargs):
+            return FakeCompletedProcess(returncode=0, stdout=self.SAMPLE_XML, stderr="")
+
+        monkeypatch.setattr(mediaconch.subprocess, "run", fake_run)
+        failures = mediaconch.get_policy_failures(tmp_path / "policy.xml", tmp_path / "file.mov")
+        assert len(failures) == 2
+        assert failures[0]["name"] == "Is the frame rate 29.970?"
+        assert failures[0]["actual"] == "25.000"
+        assert failures[0]["expected"] == "29.970"
+        assert failures[1]["name"] == "Is the scan order bottom field first?"
+        assert failures[1]["actual"] == "TFF"
+        assert failures[1]["expected"] == "BFF"
+
+    def test_returns_empty_on_parse_error(self, monkeypatch, tmp_path):
+        def fake_run(args, **kwargs):
+            return FakeCompletedProcess(returncode=0, stdout="not xml at all", stderr="")
+
+        monkeypatch.setattr(mediaconch.subprocess, "run", fake_run)
+        assert mediaconch.get_policy_failures(tmp_path / "policy.xml", tmp_path / "file.mov") == []
+
+    def test_returns_empty_on_empty_output(self, monkeypatch, tmp_path):
+        def fake_run(args, **kwargs):
+            return FakeCompletedProcess(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(mediaconch.subprocess, "run", fake_run)
+        assert mediaconch.get_policy_failures(tmp_path / "policy.xml", tmp_path / "file.mov") == []
+
+    def test_uses_fx_flag(self, monkeypatch, tmp_path):
+        captured = []
+
+        def fake_run(args, **kwargs):
+            captured.extend(args)
+            return FakeCompletedProcess(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(mediaconch.subprocess, "run", fake_run)
+        mediaconch.get_policy_failures(tmp_path / "policy.xml", tmp_path / "file.mov")
+        assert "-fx" in captured
+
+    def test_rule_without_actual_value(self, monkeypatch, tmp_path):
+        xml = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<Mediaconch version="0.7">
+  <media ref="/path/to/file.mkv">
+    <policy name="Matroska" type="and" status="fail">
+      <rule name="SeekHead is present?" scope="mmt" value="Segment/SeekHead/" status="fail"/>
+    </policy>
+  </media>
+</Mediaconch>"""
+
+        def fake_run(args, **kwargs):
+            return FakeCompletedProcess(returncode=0, stdout=xml, stderr="")
+
+        monkeypatch.setattr(mediaconch.subprocess, "run", fake_run)
+        failures = mediaconch.get_policy_failures(tmp_path / "policy.xml", tmp_path / "file.mkv")
+        assert len(failures) == 1
+        assert failures[0]["name"] == "SeekHead is present?"
+        assert failures[0]["actual"] == ""

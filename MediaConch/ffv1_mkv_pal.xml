@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<!--
+  MediaConch policy for FFV1 version 3 Matroska PAL.
+  Assembled from vrecord's MediaConch policy fragment library (CC BY 4.0):
+  https://github.com/amiaopensource/vrecord
+  Adapted for use in sqc — Stanford Media Preservation Lab.
+
+  Fragment sources (vrecord variable names):
+    CONTAINER_MATROSKA_TEST, CONTAINER_GENERAL_TEST,
+    CODEC_FFV1_TEST, CODEC_GENERAL_TEST,
+    STANDARD_PAL_TEST,
+    AUDIO_CODEC_GENERAL_TEST, AUDIO_CODEC_PCM_TEST
+
+  Identical to ffv1_mkv_ntsc.xml except for STANDARD_PAL_TEST:
+  720x576, 25fps, TFF, BT.601 PAL, matrix BT.470 System B/G or BT.601.
+-->
+<policy type="and" name="SMPL: FFV1 Matroska PAL vendor delivery">
+  <description>FFV1 version 3 PAL in Matroska — vendor delivery spec</description>
+
+  <!-- Container: Matroska .mkv -->
+  <rule name="Is the file extension mkv?" value="FileExtension" tracktype="General" operator="=">mkv</rule>
+  <rule name="Is it Matroska?" value="Format" tracktype="General" operator="=">Matroska</rule>
+  <rule name="Matroska version 4 or greater?" value="Format_Version" tracktype="General" operator="&gt;=">4</rule>
+  <rule name="Unique ID is present?" value="UniqueID" tracktype="General"/>
+  <policy type="and" name="Has Matroska finished writing?">
+    <rule name="Duration is greater than zero?" scope="mmt" operator="&gt;" value="Segment/Info/Duration/Data">0</rule>
+    <rule name="SeekHead is present?" scope="mmt" value="Segment/SeekHead/"/>
+    <rule name="Cues is present?" scope="mmt" value="Segment/Cues/"/>
+    <policy type="and" name="Select Top-Level Elements have CRCs?">
+      <rule name="SeekHead CRC-32 is present?" scope="mmt" value="Segment/SeekHead/CRC-32/"/>
+      <rule name="Info CRC-32 is present?" scope="mmt" value="Segment/Info/CRC-32/"/>
+      <rule name="Tracks CRC-32 is present?" scope="mmt" value="Segment/Tracks/CRC-32/"/>
+      <rule name="Cluster CRC-32 is present?" scope="mmt" value="Segment/Cluster/CRC-32/"/>
+      <rule name="Cues CRC-32 is present?" scope="mmt" value="Segment/Cues/CRC-32/"/>
+      <rule name="Tags CRC-32 is present?" scope="mmt" value="Segment/Tags/CRC-32/"/>
+    </policy>
+  </policy>
+
+  <!-- Stream ordering -->
+  <rule name="Is the video stream first?" value="StreamOrder" tracktype="Video" operator="=">0</rule>
+  <rule name="Is the audio stream on track 2?" value="StreamOrder" tracktype="Audio" operator="=">1</rule>
+
+  <!-- Video codec: FFV1 version 3 -->
+  <rule name="Is the video format FFV1?" value="Format" tracktype="Video" operator="=">FFV1</rule>
+  <rule name="FFV1 is version 3.4 or later?" value="Format_Version" tracktype="Video" operator="&gt;=">3.4</rule>
+  <rule name="FFV1 is encoded in GOP size of 1?" value="Format_Settings_GOP" tracktype="Video" operator="=">N=1</rule>
+
+  <!-- General video properties -->
+  <rule name="Is the video format YUV?" value="ColorSpace" tracktype="Video" operator="=">YUV</rule>
+  <rule name="Is the frame rate mode constant?" value="FrameRate_Mode" tracktype="Video" operator="=">CFR</rule>
+  <rule name="Is the color space YUV?" value="ColorSpace" tracktype="Video" operator="=">YUV</rule>
+  <policy type="or" name="Is the video bit depth 8 or 10?">
+    <rule name="Is the video bit depth 8?" value="BitDepth" tracktype="Video" operator="=">8</rule>
+    <rule name="Is the video bit depth 10?" value="BitDepth" tracktype="Video" operator="=">10</rule>
+  </policy>
+  <rule name="Is the video interlaced?" value="ScanType" tracktype="Video" operator="=">Interlaced</rule>
+
+  <!-- PAL standard -->
+  <policy type="and" name="Is it PAL?">
+    <rule name="Is the height 576?" value="Height" tracktype="Video" operator="=">576</rule>
+    <rule name="Is the width 720?" value="Width" tracktype="Video" operator="=">720</rule>
+    <rule name="Is the frame rate 25.000?" value="FrameRate" tracktype="Video" operator="=">25.000</rule>
+    <rule name="Is the scan order top field first?" value="ScanOrder" tracktype="Video" operator="=">TFF</rule>
+    <rule name="Are the colour primaries BT.601 PAL?" value="colour_primaries" tracktype="Video" operator="=">BT.601 PAL</rule>
+    <policy type="or" name="Are the matrix coefficients BT.601, BT.470 System B, BT.470 System G?">
+      <rule name="Are the matrix coefficients BT.470 System B, BT.470 System G?" value="matrix_coefficients" tracktype="Video" operator="=">BT.470 System B, BT.470 System G</rule>
+      <rule name="Are the matrix coefficients BT.470 System B/G?" value="matrix_coefficients" tracktype="Video" operator="=">BT.470 System B/G</rule>
+      <rule name="Are the matrix coefficients BT.601?" value="matrix_coefficients" tracktype="Video" operator="=">BT.601</rule>
+    </policy>
+  </policy>
+
+  <!-- Audio: channels and sample rate -->
+  <policy type="or" name="1 or 2 channels of audio?">
+    <rule name="1 channel of audio?" value="Channels" tracktype="Audio" operator="=">1</rule>
+    <rule name="2 channels of audio?" value="Channels" tracktype="Audio" operator="=">2</rule>
+  </policy>
+  <rule name="Is the sample rate 48kHz?" value="SamplingRate" tracktype="Audio" operator="=">48000</rule>
+
+  <!-- Audio: 24-bit PCM -->
+  <rule name="Is the audio PCM?" value="Format" tracktype="Audio" operator="=">PCM</rule>
+  <rule name="Is the endianness Little?" value="Format_Settings_Endianness" tracktype="Audio" operator="=">Little</rule>
+  <rule name="Is the signedness Signed?" value="Format_Settings_Sign" tracktype="Audio" operator="=">Signed</rule>
+  <rule name="Is the audio bitrate mode CBR?" value="BitRate_Mode" tracktype="Audio" operator="=">CBR</rule>
+  <rule name="Is the audio bit depth 24?" value="BitDepth" tracktype="Audio" operator="=">24</rule>
+
+</policy>

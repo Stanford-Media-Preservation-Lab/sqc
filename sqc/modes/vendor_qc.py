@@ -152,10 +152,28 @@ def check_mediaconch_policy(path: Path, profile: PolicyProfile) -> list[CheckRes
     _, is_valid = next(mediaconch.validate_files_against_policy([path], profile.mediaconch_policy, batch_size=1))
     if is_valid:
         return [CheckResult("mediaconch_policy", "PASS", f"Conforms to MediaConch policy {profile.name!r}")]
+
+    # Parse per-rule failures from XML output so each failed rule is a distinct
+    # CheckResult — makes vendor communication actionable ("rule X failed because
+    # actual value was Y, policy requires Z") rather than a truncated text blob.
+    failures = mediaconch.get_policy_failures(profile.mediaconch_policy, path)
+    if failures:
+        results = []
+        for f in failures:
+            parts = [f["name"]]
+            if f["actual"]:
+                parts.append(f"actual: {f['actual']!r}")
+            if f["expected"]:
+                parts.append(f"expected: {f['expected']!r}")
+            results.append(CheckResult("mediaconch_policy", "FAIL", " — ".join(parts)))
+        return results
+
+    # Fallback: XML parsing failed (unexpected MediaConch output format).
+    # Return full text output untruncated so nothing is silently lost.
     detail = mediaconch.get_policy_detail(profile.mediaconch_policy, path)
     return [CheckResult(
         "mediaconch_policy", "FAIL",
-        f"Does not conform to MediaConch policy {profile.name!r}: {detail[:400]}",
+        f"Policy {profile.name!r} failed:\n{detail}",
     )]
 
 

@@ -1,37 +1,76 @@
 <?xml version="1.0"?>
 <!--
-  PLACEHOLDER / NOT YET LAB-REVIEWED.
+  MediaConch policy for 2" Quadruplex NTSC digitized to v210 QuickTime.
+  Assembled from vrecord's MediaConch policy fragment library (CC BY 4.0):
+  https://github.com/amiaopensource/vrecord
+  Adapted for use in sqc — Stanford Media Preservation Lab.
 
-  No MediaConch policy XML for the 2" Quad -> v210 vendor delivery spec was
-  found among the source documents (video_diagnostic_tool_design.md,
-  SMPL_VendorQC_ClaudeCode_Context.md, smpl_qc_v210.py) — those describe the
-  policy as a Python POLICY_DEFAULTS dict, checked in code, not a MediaConch
-  XML. This file translates that same POLICY_DEFAULTS dict into MediaConch
-  rule syntax (mirroring srw/MediaConch/WAV_policy.xml's structure) so
-  vendor-qc mode has something to actually run against, but it has NOT been
-  run against a known-good v210 Quad delivery file to confirm the MediaInfo
-  field names/values below (Format, Width, Height, FrameRate, BitDepth,
-  ScanType, ScanOrder) match what MediaConch reports for this exact codec on
-  this lab's files. Confirm with the lab whether a real, already-used policy
-  exists elsewhere before relying on this for an actual vendor accept/reject
-  decision.
+  Fragment sources (vrecord variable names):
+    CONTAINER_QUICKTIME_TEST, CONTAINER_GENERAL_TEST,
+    CODEC_UNCOMPRESSED_TEST, CODEC_GENERAL_TEST,
+    STANDARD_NTSC_TEST,
+    AUDIO_CODEC_GENERAL_TEST, AUDIO_CODEC_PCM_TEST
+
+  NOTE: Not yet verified against a real 2" Quad vendor delivery file.
+  The POLICY_DEFAULTS values from smpl_qc_v210.py align with the vrecord
+  fragments here (720x486, 29.970fps, BFF, BT.601 NTSC, v210, PCM 24/48),
+  but confirm MediaInfo field values against an actual delivery before
+  relying on this for a vendor accept/reject decision.
 -->
-<policy type="and" name="SMPL: 2&quot; Quad -&gt; v210 QuickTime vendor delivery" license="CC-BY-4.0+">
-  <description>Vendor delivery spec for 2" Quadruplex NTSC tape digitized to v210 QuickTime. Mirrors smpl_qc_v210.py's POLICY_DEFAULTS.</description>
+<policy type="and" name="SMPL: v210 QuickTime NTSC vendor delivery">
+  <description>2" Quadruplex NTSC digitized to 10-bit v210 QuickTime — vendor delivery spec</description>
 
-  <rule name="Container is QuickTime?" value="Format" tracktype="General" occurrence="*" operator="=">MPEG-4</rule>
+  <!-- Container: QuickTime .mov -->
+  <rule name="Is the file extension mov?" value="FileExtension" tracktype="General" operator="=">mov</rule>
+  <rule name="Is the format MPEG-4?" value="Format" tracktype="General" operator="=">MPEG-4</rule>
+  <rule name="Is the format profile QuickTime?" value="Format_Profile" tracktype="General" operator="=">QuickTime</rule>
+  <rule name="Is the codec ID qt  ?" value="CodecID" tracktype="General" operator="=">qt  </rule>
 
-  <policy type="and" name="Video: correct essence?">
-    <rule name="Video codec is v210?" value="Format" tracktype="Video" occurrence="*" operator="=">YUV</rule>
-    <rule name="Video is 720 wide?" value="Width" tracktype="Video" occurrence="*" operator="=">720</rule>
-    <rule name="Video is 486 tall?" value="Height" tracktype="Video" occurrence="*" operator="=">486</rule>
-    <rule name="Video bit depth is 10?" value="BitDepth" tracktype="Video" occurrence="*" operator="=">10</rule>
-    <rule name="Video is interlaced?" value="ScanType" tracktype="Video" occurrence="*" operator="=">Interlaced</rule>
+  <!-- Stream ordering -->
+  <rule name="Is the video stream first?" value="StreamOrder" tracktype="Video" operator="=">0</rule>
+  <rule name="Is the audio stream on track 2?" value="StreamOrder" tracktype="Audio" operator="=">1</rule>
+
+  <!-- Video codec: uncompressed v210 -->
+  <rule name="Is the video bitrate mode CBR?" value="BitRate_Mode" tracktype="Video" operator="=">CBR</rule>
+  <policy type="or" name="Is the Codec ID v210 or 2vuy?">
+    <rule name="Is the Codec ID v210?" value="CodecID" tracktype="Video" operator="=">v210</rule>
+    <rule name="Is the Codec ID 2vuy?" value="CodecID" tracktype="Video" operator="=">2vuy</rule>
   </policy>
 
-  <policy type="and" name="Audio: correct essence?">
-    <rule name="Audio is PCM?" value="Format" tracktype="Audio" occurrence="*" operator="=">PCM</rule>
-    <rule name="Audio bit depth is 24?" value="BitDepth" tracktype="Audio" occurrence="*" operator="=">24</rule>
-    <rule name="Audio sample rate is 48kHz?" value="SamplingRate" tracktype="Audio" occurrence="*" operator="=">48000</rule>
+  <!-- General video properties -->
+  <rule name="Is the video format YUV?" value="ColorSpace" tracktype="Video" operator="=">YUV</rule>
+  <rule name="Is the frame rate mode constant?" value="FrameRate_Mode" tracktype="Video" operator="=">CFR</rule>
+  <rule name="Is the color space YUV?" value="ColorSpace" tracktype="Video" operator="=">YUV</rule>
+  <policy type="or" name="Is the video bit depth 8 or 10?">
+    <rule name="Is the video 2vuy?" value="CodecID" tracktype="Video" operator="=">2vuy</rule>
+    <!--MediaInfo library does not currently store explicit video BitDepth value for 2vuy-->
+    <rule name="Is the video bit depth 8?" value="BitDepth" tracktype="Video" operator="=">8</rule>
+    <rule name="Is the video bit depth 10?" value="BitDepth" tracktype="Video" operator="=">10</rule>
   </policy>
+  <rule name="Is the video interlaced?" value="ScanType" tracktype="Video" operator="=">Interlaced</rule>
+
+  <!-- NTSC standard -->
+  <policy type="and" name="Is it NTSC?">
+    <rule name="Is the height 486?" value="Height" tracktype="Video" operator="=">486</rule>
+    <rule name="Is the width 720?" value="Width" tracktype="Video" operator="=">720</rule>
+    <rule name="Is the frame rate 29.970?" value="FrameRate" tracktype="Video" operator="=">29.970</rule>
+    <rule name="Is the scan order bottom field first?" value="ScanOrder" tracktype="Video" operator="=">BFF</rule>
+    <rule name="Are the colour primaries BT.601 NTSC?" value="colour_primaries" tracktype="Video" operator="=">BT.601 NTSC</rule>
+    <rule name="Are the matrix coefficients BT.601?" value="matrix_coefficients" tracktype="Video" operator="=">BT.601</rule>
+  </policy>
+
+  <!-- Audio: channels and sample rate -->
+  <policy type="or" name="1 or 2 channels of audio?">
+    <rule name="1 channel of audio?" value="Channels" tracktype="Audio" operator="=">1</rule>
+    <rule name="2 channels of audio?" value="Channels" tracktype="Audio" operator="=">2</rule>
+  </policy>
+  <rule name="Is the sample rate 48kHz?" value="SamplingRate" tracktype="Audio" operator="=">48000</rule>
+
+  <!-- Audio: 24-bit PCM -->
+  <rule name="Is the audio PCM?" value="Format" tracktype="Audio" operator="=">PCM</rule>
+  <rule name="Is the endianness Little?" value="Format_Settings_Endianness" tracktype="Audio" operator="=">Little</rule>
+  <rule name="Is the signedness Signed?" value="Format_Settings_Sign" tracktype="Audio" operator="=">Signed</rule>
+  <rule name="Is the audio bitrate mode CBR?" value="BitRate_Mode" tracktype="Audio" operator="=">CBR</rule>
+  <rule name="Is the audio bit depth 24?" value="BitDepth" tracktype="Audio" operator="=">24</rule>
+
 </policy>

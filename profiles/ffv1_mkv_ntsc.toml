@@ -1,0 +1,34 @@
+# SMPL vendor-qc policy profile: FFV1 version 3 Matroska NTSC.
+# Derived from vrecord's policy fragment library (CC BY 4.0):
+# https://github.com/amiaopensource/vrecord
+
+[profile]
+name = "ffv1_mkv_ntsc"
+description = "FFV1 version 3 NTSC in Matroska — vendor delivery spec"
+container_extensions = [".mkv"]
+mediaconch_policy = "ffv1_mkv_ntsc.xml"
+
+[video]
+codec = "ffv1"
+width = 720
+height = 486
+fps_num = 30000
+fps_den = 1001
+# No timescale_multiple: MKV does not use a QuickTime-style fixed timescale;
+# the rounding-induced VFR that timescale_multiple detects is QT-specific.
+bit_depth = 10
+scan_type = "interlaced"
+field_order = ["bb", "bt"]    # both indicate BFF for NTSC
+
+[audio]
+codec_prefix = "pcm"          # pcm_s24le
+bit_depth = 24
+sample_rate = 48000
+min_streams = 1
+
+[thresholds]
+av_duration_threshold_s = 1.0
+av_delay_threshold_s = 0.001
+spin_down_zone = 0.97
+frame_anomaly_low_ratio = 0.5
+frame_anomaly_high_ratio = 1.5
