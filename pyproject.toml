@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sqc"
-version = "0.2.0"
+dynamic = ["version"]
 description = "SMPL QC tool for vendor-delivered and donor-received video/audio: vendor-qc (spec conformance) and donor-triage (well-formedness) modes"
 readme = "README.md"
 license = { text = "MIT" }
@@ -18,6 +18,9 @@ dependencies = [
 
 [project.scripts]
 sqc = "sqc.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "sqc._version.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -21,13 +21,13 @@ from sqc.config import (
     DonorTriageConfig,
     VendorQCConfig,
 )
+from sqc._version import __version__
 from sqc.intake import discover_files
 from sqc.logs import setup_logging
 from sqc.modes import donor_triage, vendor_qc
 from sqc.policy import load_profile
 from sqc.report.csv_summary import write_csv
 
-__version__ = "0.2.0"
 
 
 def add_shared_arguments(parser: argparse.ArgumentParser, default_extensions) -> None:

@@ -42,8 +42,28 @@ Two prior threads fed into this tool's design:
 
 ## Current state
 
-At **v0.2.0**. Both modes are implemented end-to-end and verified against
+At **v0.3.0**. Both modes are implemented end-to-end and verified against
 real local files (see "Verification done so far" below).
+
+- **v0.3.0: vrecord-derived MediaConch policies, per-rule failure output, test media.**
+  - Replaced the placeholder `MediaConch/v210_quad_ntsc.xml` with a policy
+    assembled from vrecord's policy fragments (CC BY 4.0), and added
+    `MediaConch/ffv1_mkv_ntsc.xml` / `ffv1_mkv_pal.xml` with matching
+    `profiles/*.toml` (no QuickTime/AJA-specific `timescale_multiple` or
+    `capture_quirks`). The FFV1/Matroska policies include the `scope="mmt"`
+    CRC checks on the top-level structural elements, which catch improperly
+    finalized or truncated MKV files.
+  - `tools/mediaconch.py::get_policy_failures()` runs MediaConch with `-fx`
+    and parses each failing rule; `check_mediaconch_policy()` now returns one
+    `CheckResult` per failing rule with the actual value found, instead of a
+    single truncated text blob.
+  - `scripts/make_test_media.sh` generates 10 synthetic v210/MOV clips from
+    ffmpeg lavfi color bars covering PASS/FAIL/WARN cases for the vendor-qc
+    checks. VFR tail/drops are best sourced from real delivery files.
+  - **Version is single-sourced** in `sqc/_version.py`; `__init__`, `cli`
+    (`--version`), the report's `TOOL_VERSION`, and `pyproject.toml` (via
+    `[tool.setuptools.dynamic]`) all read it. Before this, v0.3.0 shipped
+    with the version still hard-coded as 0.2.0 in four places.
 
 - **v0.2.0: VFR taxonomy de-emphasis + a real gap fix, both from user
   feedback after using v0.1.0 for a day.**
@@ -126,7 +146,7 @@ real local files (see "Verification done so far" below).
     standing rule) — `None` means one worker slot per file.
   - Logging uses stdlib `logging`, not the hand-rolled `write_log()`
     convention `srw`/`vdg` use — see "Key design decisions."
-  - `MediaConch/v210_quad_ntsc.xml` is a **placeholder**, not a verified lab
+  - (Superseded in v0.3.0, see above.) `MediaConch/v210_quad_ntsc.xml` was a **placeholder**, not a verified lab
     policy — no MediaConch XML for the 2" Quad delivery spec existed among
     the source documents (Doc B describes the policy as a Python dict, not
     a MediaConch policy file). Flag to the user whether a real one exists
@@ -168,6 +188,10 @@ the FAIL paths):
 
 ## Key design decisions
 
+- **One place for the version: `sqc/_version.py`.** It has no imports so
+  setuptools can read it statically; everything else imports from it. This
+  matters because each report is stamped with the tool version, and a report
+  must be traceable to the exact tool state that produced it.
 - **Structured JSON + CSV + stdlib `logging`, not `srw`/`vdg`'s hand-rolled
   `write_log()`.** Those tools' resume systems depend on re-scanning log
   text for step-completion markers; `sqc` resumes by checking whether a
@@ -208,7 +232,19 @@ the FAIL paths):
 
 ## Known issues and investigations
 
-- **`MediaConch/v210_quad_ntsc.xml` is unverified** — translated from
+- **Directory scans silently skip files by extension (open, not fixed).**
+  `intake.discover_files()` filters a directory's contents by suffix against
+  the configured extension list (`DEFAULT_DONOR_TRIAGE_EXTENSIONS` in
+  `config.py` for donor-triage; the profile's `container_extensions` for
+  vendor-qc; `--extensions` overrides either), so a file with no extension, or an
+  extension that isn't listed, is never examined and never reported. The
+  v0.2.0 missing-extension fix (`EXTENSION_FORMAT_MISMATCH`) only helps when
+  such a file is passed directly, because `discover_files()` returns a single
+  file path as-is. Nothing in the output records which files a directory scan
+  passed over. Deliberately left unfixed: what sqc should do about unexpected
+  files and non-media files (pre-flight checks, directory layout rules) is a
+  pending design discussion, and the answer determines the fix.
+- **`MediaConch/v210_quad_ntsc.xml` is unverified** (v0.3.0 replaced the original with a vrecord-derived policy; this entry describes the original, and nothing recorded here shows the new one run against a real 2" Quad delivery either) — translated from
   `smpl_qc_v210.py`'s `POLICY_DEFAULTS` dict into MediaConch rule syntax
   (mirroring `srw/MediaConch/WAV_policy.xml`'s structure), but never run
   against a known-good v210 Quad delivery file. Confirm the MediaInfo field
